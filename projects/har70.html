@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Human Activity Recognition in Older Adults — Dan Nguyen</title>
+  <meta name="description" content="Machine-learning pipeline that classifies daily activities of adults 70+ from dual accelerometer data (HAR70+)." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <header class="nav">
+    <a href="../index.html" class="logo">DN</a>
+    <nav class="nav-links nav-links-static">
+      <a href="../index.html#projects">← All projects</a>
+    </nav>
+  </header>
+
+  <main class="case">
+    <!-- HEADER -->
+    <section class="case-hero">
+      <p class="eyebrow">Machine Learning · CS 156 · Spring 2026 · Team of 5</p>
+      <h1>Human Activity Recognition in Older Adults</h1>
+      <p class="lead">
+        Most activity‑tracking models are trained on young, healthy people. We built a machine‑learning
+        pipeline that recognizes daily activities of adults aged <strong>70–84</strong>, including walking‑aid users,
+        from two body‑worn accelerometers.
+      </p>
+      <div class="hero-actions">
+        <a href="../docs/HAR70-activity-recognition-paper.pdf" class="btn" target="_blank" rel="noopener">Read the full paper (PDF)</a>
+        <a href="../notebooks/har70-notebook.html" class="btn btn-outline" target="_blank" rel="noopener">View the code (notebook)</a>
+      </div>
+
+      <div class="stats">
+        <div><strong>2.26M</strong><span>sensor samples</span></div>
+        <div><strong>18</strong><span>participants, ages 70–84</span></div>
+        <div><strong>7</strong><span>activities classified</span></div>
+        <div><strong>96.4%</strong><span>accuracy (XGBoost)</span></div>
+      </div>
+    </section>
+
+    <!-- AT A GLANCE -->
+    <section class="case-section">
+      <h2>At a glance</h2>
+      <div class="glance">
+        <div><h3>Problem</h3><p>Activity recognition matters for fall detection and health monitoring, but older adults move differently (slower gait, shuffling, walking aids), so models trained on young people generalize poorly.</p></div>
+        <div><h3>Data</h3><p><a href="https://doi.org/10.3390/s23052368" target="_blank" rel="noopener">HAR70+ dataset</a>: 50 Hz accelerometers on the lower back and thigh. Activities: walking, shuffling, stairs up/down, standing, sitting and lying.</p></div>
+        <div><h3>Approach</h3><p>Clean signals, slice them into 2‑second windows, extract 56 features per window, then compare six classifiers and test on people the model has never seen.</p></div>
+        <div><h3>Tools</h3><p class="tags"><span>Python</span><span>pandas</span><span>NumPy</span><span>SciPy</span><span>scikit‑learn</span><span>XGBoost</span><span>TensorFlow/Keras</span><span>matplotlib</span><span>Google Colab</span><span>LaTeX</span></p></div>
+      </div>
+    </section>
+
+    <!-- PIPELINE -->
+    <section class="case-section">
+      <h2>The pipeline</h2>
+      <ol class="pipeline">
+        <li><span>1</span><h3>Explore</h3><p>Profile 18 subjects and 7 classes; uncover heavy class imbalance.</p></li>
+        <li><span>2</span><h3>Preprocess</h3><p>Per‑subject interpolation + Savitzky–Golay filter; add magnitude channels.</p></li>
+        <li><span>3</span><h3>Window</h3><p>Test 10 window sizes; choose 100 samples (2 s) with 50% overlap.</p></li>
+        <li><span>4</span><h3>Features</h3><p>7 time‑ and frequency‑domain stats × 8 channels = 56 features.</p></li>
+        <li><span>5</span><h3>Model</h3><p>Decision Tree, SVM, Naive Bayes, Random Forest, AdaBoost, XGBoost.</p></li>
+        <li><span>6</span><h3>Evaluate</h3><p>Macro F1, per‑class errors and Leave‑One‑Subject‑Out testing.</p></li>
+      </ol>
+    </section>
+
+    <!-- 1. DATA -->
+    <section class="case-section">
+      <h2>1 · Understanding the data</h2>
+      <div class="split">
+        <div>
+          <p>Each activity leaves a distinct “fingerprint” in the signal. Walking shows a regular spike at every
+            footstep (about one per second), while shuffling, common in older adults, is irregular and low‑amplitude.
+            That makes it easy to confuse with slow walking or standing.</p>
+          <p>The data is also <strong>heavily imbalanced</strong>: walking is about half of all samples, while stair
+            climbing makes up less than 1%. That's why we report <strong>macro F1</strong>, which weights every
+            activity equally, instead of relying on accuracy alone.</p>
+        </div>
+        <figure><img src="../images/har70/class-distribution.png" alt="Bar chart of samples per activity; walking dominates and stair classes are tiny" /><figcaption>Class distribution: walking dominates; stairs are rare.</figcaption></figure>
+      </div>
+      <div class="figure-row">
+        <figure><img src="../images/har70/raw-walking.png" alt="Raw accelerometer signal during walking with periodic spikes" /><figcaption>Walking: periodic footstep spikes on the thigh sensor.</figcaption></figure>
+        <figure><img src="../images/har70/raw-shuffling.png" alt="Raw accelerometer signal during shuffling, irregular and low amplitude" /><figcaption>Shuffling: irregular, low‑amplitude, no clear rhythm.</figcaption></figure>
+      </div>
+    </section>
+
+    <!-- 2. PREPROCESS -->
+    <section class="case-section">
+      <h2>2 · Cleaning &amp; windowing the signal</h2>
+      <div class="split">
+        <figure><img src="../images/har70/preprocessing-thigh.png" alt="Raw versus filtered thigh signal; filter removes sharp spikes but keeps the gait pattern" /><figcaption>Raw (blue) vs. filtered (orange): noise spikes removed, gait pattern kept.</figcaption></figure>
+        <div>
+          <p>We filled sensor dropouts with interpolation <em>within each person's recording</em>, so no data leaked
+            between subjects. Then we smoothed the signal with a Savitzky–Golay filter, which removes noise while
+            keeping the shape of each step.</p>
+          <p>Next we cut the continuous stream into overlapping windows. We tested <strong>10 window sizes</strong>
+            (0.5 s to 6 s). <strong>2‑second windows</strong> worked best: long enough to capture a full stride,
+            short enough to avoid mixing two activities in one window.</p>
+        </div>
+      </div>
+      <figure class="wide"><img src="../images/har70/window-size.png" alt="Line chart of macro F1 versus window size for XGBoost and Random Forest, peaking near 100 samples" /><figcaption>Macro F1 vs. window size: both models peak at about 100 samples (2 s).</figcaption></figure>
+    </section>
+
+    <!-- 3. FEATURES -->
+    <section class="case-section">
+      <h2>3 · Feature engineering</h2>
+      <div class="split">
+        <div>
+          <p>For each window we computed <strong>56 features</strong> across 8 channels (3 back axes, 3 thigh axes
+            and 2 overall‑magnitude signals): mean, standard deviation, RMS, zero‑crossing rate, dominant
+            frequency, spectral energy and spectral entropy.</p>
+          <p>We validated the feature table (45,167 windows × 56 features) and found zero missing or infinite values.
+            Random Forest feature importance showed that <strong>thigh movement variability and energy</strong>
+            were the strongest signals.</p>
+        </div>
+        <figure><img src="../images/har70/feature-importance.png" alt="Top 15 feature importances, led by thigh_z_std and thigh_x_rms" /><figcaption>Top 15 features (Random Forest importance).</figcaption></figure>
+      </div>
+    </section>
+
+    <!-- 4. RESULTS -->
+    <section class="case-section">
+      <h2>4 · Results</h2>
+      <div class="split">
+        <div>
+          <table class="results">
+            <thead><tr><th>Model</th><th>Macro F1</th><th>Accuracy</th></tr></thead>
+            <tbody>
+              <tr class="best"><td>XGBoost</td><td>0.819</td><td>96.4%</td></tr>
+              <tr><td>Random Forest</td><td>0.784</td><td>95.9%</td></tr>
+              <tr><td>SVM</td><td>0.765</td><td>95.5%</td></tr>
+              <tr><td>Decision Tree</td><td>0.736</td><td>94.1%</td></tr>
+              <tr><td>AdaBoost</td><td>0.580</td><td>90.5%</td></tr>
+              <tr><td>Naive Bayes</td><td>0.534</td><td>60.2%</td></tr>
+            </tbody>
+          </table>
+          <p class="muted small">80/20 stratified split, 2‑second windows.</p>
+          <p>Gradient‑boosted trees (<strong>XGBoost</strong>) performed best. The gap between accuracy and macro F1 shows
+            the effect of imbalance: models score well overall but struggle on rare activities.</p>
+        </div>
+        <figure><img src="../images/har70/model-comparison.png" alt="Bar chart comparing macro F1 and weighted F1 for six models" /><figcaption>Macro vs. weighted F1: the gap reveals how imbalance inflates scores.</figcaption></figure>
+      </div>
+      <div class="figure-row">
+        <figure><img src="../images/har70/perclass-f1.png" alt="Heatmap of per-class F1 for each model; shuffling and stairs are weakest" /><figcaption>Per‑activity F1: sitting and lying are near perfect; shuffling and stairs are hardest.</figcaption></figure>
+        <figure><img src="../images/har70/confusion-matrix.png" alt="XGBoost confusion matrix; shuffling often predicted as walking or standing" /><figcaption>XGBoost confusion matrix: shuffling is most often mistaken for walking.</figcaption></figure>
+      </div>
+    </section>
+
+    <!-- 5. KEY INSIGHT -->
+    <section class="case-section">
+      <h2>5 · The key insight: testing on new people</h2>
+      <div class="callout">
+        <div class="compare">
+          <div><strong>0.94</strong><span>F1, random split</span></div>
+          <div class="arrow">→</div>
+          <div><strong>0.67</strong><span>F1, unseen people (LOSO)</span></div>
+        </div>
+        <p>A random train/test split lets the model see the same person in both training and testing, which
+          inflates the score. With <strong>Leave‑One‑Subject‑Out</strong> testing, we trained on 17 people and
+          tested on the 18th, repeating this for everyone. Random Forest dropped from 0.94 to 0.67 F1. That's the
+          honest estimate of how a health‑monitoring product would perform for a new user, and it shows that
+          person‑to‑person differences in gait are the real challenge.</p>
+      </div>
+    </section>
+
+    <!-- TAKEAWAYS -->
+    <section class="case-section">
+      <h2>What I learned</h2>
+      <ul class="takeaways">
+        <li><strong>Choose metrics that match the problem.</strong> On imbalanced data, accuracy can hide failures that macro F1 exposes.</li>
+        <li><strong>Watch for data leakage.</strong> Per‑subject preprocessing and LOSO evaluation give results you can trust.</li>
+        <li><strong>Feature engineering still matters.</strong> Well‑designed handcrafted features let classical models reach about 96% accuracy.</li>
+        <li><strong>Next steps:</strong> oversample rare classes (e.g., SMOTE), adapt models to each person, and train CNN/LSTM models on the 3D sequence tensor (45,167 × 100 × 8) we prepared.</li>
+      </ul>
+      <p class="muted small">Team: Yogi Chipalkatti, Sai Vishnumolakala, Jefle Legson, Dan Nguyen, Arsen Keneshbekov. Dataset: Ustad et al., “The HAR70+ Model,” <em>Sensors</em> 23(5), 2023.</p>
+      <div class="hero-actions">
+        <a href="../docs/HAR70-activity-recognition-paper.pdf" class="btn" target="_blank" rel="noopener">Read the full paper (PDF)</a>
+        <a href="../notebooks/har70-notebook.html" class="btn btn-outline" target="_blank" rel="noopener">View the code (notebook)</a>
+        <a href="../index.html#projects" class="btn btn-outline">← Back to projects</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer"><p>© 2026 Dan Nguyen · San José, CA</p></footer>
+</body>
+</html>
